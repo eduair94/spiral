@@ -5,29 +5,40 @@ const PHI = 1.6180339887;
 
 // Configuration - all measurements in millimeters
 interface SpiralConfig {
-  initialRadius: number;      // 15 mm
+  initialRadius: number;      // Starting radius in mm
   lineWidth: number;          // 2 mm
   totalPathLength: number;    // 3330 mm (3.33 meters)
-  turns: number;              // 7.5 turns (7 full + half of 8th)
+  targetTurns: number;        // 7.5 turns (7 full + half of 8th)
   guideCircleRadii: number[]; // in mm
   canvasSizeMM: number;       // Canvas size in mm
   dpi: number;                // Dots per inch for printing
+  useFixedTurns: boolean;     // If true, use fixed turns; if false, calculate based on path length
 }
 
 const DEFAULT_CONFIG: SpiralConfig = {
   initialRadius: 15,
   lineWidth: 2,
   totalPathLength: 3330,
-  turns: 7.5,
-  guideCircleRadii: [15, 24, 39, 63, 102, 165, 253, 267], // Adjusted radii
+  targetTurns: 7.5,
+  guideCircleRadii: [15, 24, 39, 63, 102, 165, 253, 267], // Guide circle radii in mm
   canvasSizeMM: 550, // Slightly larger than 506mm diameter
-  dpi: 300
+  dpi: 300,
+  useFixedTurns: true  // Use the target turns (7.5) as the constraint
 };
 
 // State
 let config = { ...DEFAULT_CONFIG };
 let calculatedPathLength = 0;
 let finalRadius = 0;
+let effectiveRadius = 15; // The actual initial radius used (may differ from config.initialRadius)
+
+// Zoom and pan state
+let currentZoom = 1;
+let panX = 0;
+let panY = 0;
+let isDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 /**
  * Golden spiral: r(θ) = a * φ^(θ/(2π))
@@ -41,12 +52,12 @@ function goldenSpiralRadius(theta: number, initialRadius: number): number {
 
 /**
  * Calculate the arc length of a golden spiral from θ=0 to θ=maxTheta
- * Using numerical integration (Simpson's rule)
+ * Using numerical integration (higher precision with more steps)
  * 
  * Arc length formula: L = ∫√(r² + (dr/dθ)²) dθ
  * For golden spiral: dr/dθ = r * ln(φ) / (2π)
  */
-function calculateArcLength(initialRadius: number, maxTheta: number, steps: number = 10000): number {
+function calculateArcLength(initialRadius: number, maxTheta: number, steps: number = 50000): number {
   const k = Math.log(PHI) / (2 * Math.PI);
   let length = 0;
   const dTheta = maxTheta / steps;
@@ -62,6 +73,34 @@ function calculateArcLength(initialRadius: number, maxTheta: number, steps: numb
   }
   
   return length;
+}
+
+/**
+ * Find the initial radius that gives us the target path length for a fixed number of turns
+ * Uses binary search for precision
+ */
+function findInitialRadiusForPathLength(targetLength: number, turns: number): number {
+  const maxTheta = turns * 2 * Math.PI;
+  let low = 0.1;  // Minimum initial radius in mm
+  let high = 100; // Maximum initial radius in mm
+  const tolerance = 0.1; // 0.1mm tolerance
+  
+  while (high - low > 0.001) {
+    const mid = (low + high) / 2;
+    const length = calculateArcLength(mid, maxTheta);
+    
+    if (Math.abs(length - targetLength) < tolerance) {
+      return mid;
+    }
+    
+    if (length < targetLength) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  
+  return (low + high) / 2;
 }
 
 /**
@@ -147,19 +186,37 @@ function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): void {
   // Add subtle paper texture
   addPaperTexture(ctx, canvasPixels);
   
-  // Calculate the theta needed for target path length
-  const maxTheta = findThetaForPathLength(config.initialRadius, config.totalPathLength);
-  const actualTurns = maxTheta / (2 * Math.PI);
+  let maxTheta: number;
+  let actualTurns: number;
+  let effectiveInitialRadius = config.initialRadius;
   
-  // Update calculated values
-  calculatedPathLength = calculateArcLength(config.initialRadius, maxTheta);
-  finalRadius = goldenSpiralRadius(maxTheta, config.initialRadius);
+  if (config.useFixedTurns) {
+    // Use fixed number of turns (7.5) and calculate the initial radius needed
+    // to achieve the target path length with that many turns
+    maxTheta = config.targetTurns * 2 * Math.PI;
+    actualTurns = config.targetTurns;
+    
+    // Find the initial radius that gives us the target path length with fixed turns
+    effectiveInitialRadius = findInitialRadiusForPathLength(config.totalPathLength, config.targetTurns);
+    
+    // Update calculated values
+    calculatedPathLength = calculateArcLength(effectiveInitialRadius, maxTheta);
+    finalRadius = goldenSpiralRadius(maxTheta, effectiveInitialRadius);
+  } else {
+    // Calculate theta based on path length with fixed initial radius
+    maxTheta = findThetaForPathLength(config.initialRadius, config.totalPathLength);
+    actualTurns = maxTheta / (2 * Math.PI);
+    
+    // Update calculated values
+    calculatedPathLength = calculateArcLength(config.initialRadius, maxTheta);
+    finalRadius = goldenSpiralRadius(maxTheta, config.initialRadius);
+  }
   
   // Draw guide circles (very faint light-gray)
   drawGuideCircles(ctx, centerX, centerY, config, finalRadius);
   
   // Generate spiral points
-  const points = generateSpiralPoints(config.initialRadius, maxTheta, 720);
+  const points = generateSpiralPoints(effectiveInitialRadius, maxTheta, 720);
   
   // Draw the spiral
   ctx.strokeStyle = '#000000';
@@ -184,7 +241,10 @@ function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): void {
   drawCenterMark(ctx, centerX, centerY, config.dpi);
   
   // Update UI with calculated values
-  updateCalculatedValues(actualTurns);
+  updateCalculatedValues(actualTurns, effectiveInitialRadius);
+  
+  // Store effective radius for SVG export
+  effectiveRadius = effectiveInitialRadius;
 }
 
 /**
@@ -279,11 +339,12 @@ function drawCenterMark(
 /**
  * Update the UI with calculated values
  */
-function updateCalculatedValues(actualTurns: number): void {
+function updateCalculatedValues(actualTurns: number, effectiveInitialRadius: number): void {
   const pathLengthEl = document.getElementById('calculated-path-length');
   const finalRadiusEl = document.getElementById('calculated-final-radius');
   const turnsEl = document.getElementById('calculated-turns');
   const diameterEl = document.getElementById('calculated-diameter');
+  const initialRadiusEl = document.getElementById('calculated-initial-radius');
   
   if (pathLengthEl) {
     pathLengthEl.textContent = `${(calculatedPathLength / 1000).toFixed(4)} m (${calculatedPathLength.toFixed(1)} mm)`;
@@ -296,6 +357,9 @@ function updateCalculatedValues(actualTurns: number): void {
   }
   if (diameterEl) {
     diameterEl.textContent = `${((finalRadius * 2) / 10).toFixed(2)} cm`;
+  }
+  if (initialRadiusEl) {
+    initialRadiusEl.textContent = `${effectiveInitialRadius.toFixed(2)} mm`;
   }
 }
 
@@ -371,8 +435,19 @@ function downloadSpiral(): void {
  * Download as SVG for vector printing
  */
 function downloadSVG(): void {
-  const maxTheta = findThetaForPathLength(config.initialRadius, config.totalPathLength);
-  const points = generateSpiralPoints(config.initialRadius, maxTheta, 720);
+  // Use the same logic as drawSpiral to get consistent results
+  let maxTheta: number;
+  let usedInitialRadius: number;
+  
+  if (config.useFixedTurns) {
+    maxTheta = config.targetTurns * 2 * Math.PI;
+    usedInitialRadius = effectiveRadius;
+  } else {
+    maxTheta = findThetaForPathLength(config.initialRadius, config.totalPathLength);
+    usedInitialRadius = config.initialRadius;
+  }
+  
+  const points = generateSpiralPoints(usedInitialRadius, maxTheta, 720);
   
   const svgWidth = config.canvasSizeMM;
   const svgHeight = config.canvasSizeMM;
@@ -413,7 +488,7 @@ function downloadSVG(): void {
   
   const blob = new Blob([svg], { type: 'image/svg+xml' });
   const link = document.createElement('a');
-  link.download = `golden-spiral-${config.initialRadius}mm-${(config.totalPathLength/1000).toFixed(2)}m.svg`;
+  link.download = `golden-spiral-${usedInitialRadius.toFixed(1)}mm-${(config.totalPathLength/1000).toFixed(2)}m.svg`;
   link.href = URL.createObjectURL(blob);
   link.click();
 }
@@ -426,7 +501,7 @@ function init(): void {
   if (!app) return;
   
   app.innerHTML = `
-    <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div class="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <!-- Header -->
       <header class="no-print bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-4">
@@ -504,6 +579,10 @@ function init(): void {
                   <span id="calculated-path-length" class="text-white font-mono">--</span>
                 </div>
                 <div class="flex justify-between items-center py-2 border-b border-slate-700">
+                  <span class="text-slate-400">Initial Radius:</span>
+                  <span id="calculated-initial-radius" class="text-white font-mono">--</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-700">
                   <span class="text-slate-400">Final Radius:</span>
                   <span id="calculated-final-radius" class="text-white font-mono">--</span>
                 </div>
@@ -519,7 +598,7 @@ function init(): void {
               
               <div class="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                 <p class="text-xs text-amber-300">
-                  <strong>φ (Phi):</strong> ${PHI.toFixed(10)}<br>
+                  <strong>φ (Phi):</strong> \${PHI.toFixed(10)}<br>
                   Growth factor per 360° turn
                 </p>
               </div>
@@ -608,21 +687,43 @@ function init(): void {
             <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
               <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-white">Preview</h2>
-                <span class="text-sm text-slate-400">Scroll to zoom, drag to pan</span>
+                <div class="flex items-center gap-2">
+                  <button id="zoom-out-btn" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" title="Zoom Out">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+                    </svg>
+                  </button>
+                  <span id="zoom-level" class="text-sm text-slate-400 min-w-[60px] text-center">Fit</span>
+                  <button id="zoom-in-btn" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" title="Zoom In">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+                    </svg>
+                  </button>
+                  <button id="zoom-fit-btn" class="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" title="Fit to View">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                    </svg>
+                  </button>
+                  <button id="zoom-100-btn" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-xs font-medium" title="100% (Actual Size)">
+                    1:1
+                  </button>
+                </div>
               </div>
               
-              <div id="canvas-container" class="relative overflow-auto bg-slate-900 rounded-lg" style="max-height: 70vh;">
-                <canvas id="spiral-canvas" class="block mx-auto"></canvas>
+              <div id="canvas-container" class="relative overflow-hidden bg-slate-900 rounded-lg cursor-grab active:cursor-grabbing" style="height: 500px;">
+                <div id="canvas-wrapper" class="absolute origin-center transition-transform duration-150" style="transform-origin: center center;">
+                  <canvas id="spiral-canvas" class="block"></canvas>
+                </div>
               </div>
               
               <div class="mt-4 flex items-center justify-between text-sm text-slate-400">
                 <span>Canvas: <span id="canvas-size-display">--</span></span>
-                <span>Ready to print at 1:1 scale</span>
+                <span class="text-xs">Scroll to zoom • Drag to pan • Double-click to reset</span>
               </div>
             </div>
             
             <!-- Print Instructions -->
-            <div class="mt-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-6">
+            <div class="mt-6 bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-6">
               <h3 class="text-lg font-semibold text-amber-400 mb-3">📋 Printing Instructions</h3>
               <ol class="text-sm text-slate-300 space-y-2 list-decimal list-inside">
                 <li>Download the SVG file for best quality at large sizes</li>
@@ -669,6 +770,7 @@ function setupEventListeners(): void {
     if (canvas) {
       drawSpiral(canvas, config);
       updateCanvasSizeDisplay();
+      fitToView();
     }
   });
   
@@ -685,6 +787,207 @@ function setupEventListeners(): void {
   document.getElementById('dpi')?.addEventListener('change', (e) => {
     config.dpi = parseInt((e.target as HTMLSelectElement).value);
   });
+  
+  // Zoom controls
+  setupZoomControls();
+}
+
+/**
+ * Set up zoom and pan controls
+ */
+function setupZoomControls(): void {
+  const container = document.getElementById('canvas-container');
+  const wrapper = document.getElementById('canvas-wrapper');
+  
+  if (!container || !wrapper) return;
+  
+  // Zoom buttons
+  document.getElementById('zoom-in-btn')?.addEventListener('click', () => {
+    setZoom(currentZoom * 1.25);
+  });
+  
+  document.getElementById('zoom-out-btn')?.addEventListener('click', () => {
+    setZoom(currentZoom / 1.25);
+  });
+  
+  document.getElementById('zoom-fit-btn')?.addEventListener('click', fitToView);
+  
+  document.getElementById('zoom-100-btn')?.addEventListener('click', () => {
+    setZoom(1);
+    panX = 0;
+    panY = 0;
+    updateTransform();
+  });
+  
+  // Mouse wheel zoom
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    
+    // Get mouse position relative to container
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - rect.width / 2;
+    const mouseY = e.clientY - rect.top - rect.height / 2;
+    
+    // Adjust pan to zoom towards mouse position
+    const newZoom = Math.max(0.05, Math.min(5, currentZoom * delta));
+    const zoomRatio = newZoom / currentZoom;
+    
+    panX = mouseX - (mouseX - panX) * zoomRatio;
+    panY = mouseY - (mouseY - panY) * zoomRatio;
+    
+    currentZoom = newZoom;
+    updateTransform();
+  }, { passive: false });
+  
+  // Pan with mouse drag
+  container.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    container.style.cursor = 'grabbing';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - lastMouseX;
+    const deltaY = e.clientY - lastMouseY;
+    
+    panX += deltaX;
+    panY += deltaY;
+    
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    
+    updateTransform();
+  });
+  
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      if (container) {
+        container.style.cursor = 'grab';
+      }
+    }
+  });
+  
+  // Double-click to reset view
+  container.addEventListener('dblclick', fitToView);
+  
+  // Touch support for mobile
+  let touchStartDistance = 0;
+  let touchStartZoom = 1;
+  
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      touchStartDistance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartZoom = currentZoom;
+    } else if (e.touches.length === 1) {
+      isDragging = true;
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    }
+  }, { passive: true });
+  
+  container.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = distance / touchStartDistance;
+      setZoom(touchStartZoom * scale);
+    } else if (e.touches.length === 1 && isDragging) {
+      const deltaX = e.touches[0].clientX - lastMouseX;
+      const deltaY = e.touches[0].clientY - lastMouseY;
+      
+      panX += deltaX;
+      panY += deltaY;
+      
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+      
+      updateTransform();
+    }
+  }, { passive: false });
+  
+  container.addEventListener('touchend', () => {
+    isDragging = false;
+  });
+  
+  // Initial fit to view
+  setTimeout(fitToView, 100);
+}
+
+/**
+ * Set zoom level
+ */
+function setZoom(zoom: number): void {
+  currentZoom = Math.max(0.05, Math.min(5, zoom));
+  updateTransform();
+}
+
+/**
+ * Fit the canvas to the container view
+ */
+function fitToView(): void {
+  const container = document.getElementById('canvas-container');
+  const canvas = document.getElementById('spiral-canvas') as HTMLCanvasElement;
+  
+  if (!container || !canvas) return;
+  
+  const containerRect = container.getBoundingClientRect();
+  const padding = 20;
+  
+  const scaleX = (containerRect.width - padding * 2) / canvas.width;
+  const scaleY = (containerRect.height - padding * 2) / canvas.height;
+  
+  currentZoom = Math.min(scaleX, scaleY, 1);
+  panX = 0;
+  panY = 0;
+  
+  updateTransform();
+}
+
+/**
+ * Update the transform of the canvas wrapper
+ */
+function updateTransform(): void {
+  const wrapper = document.getElementById('canvas-wrapper');
+  const container = document.getElementById('canvas-container');
+  const canvas = document.getElementById('spiral-canvas') as HTMLCanvasElement;
+  const zoomDisplay = document.getElementById('zoom-level');
+  
+  if (!wrapper || !container || !canvas) return;
+  
+  const containerRect = container.getBoundingClientRect();
+  
+  // Calculate position to center the canvas
+  const scaledWidth = canvas.width * currentZoom;
+  const scaledHeight = canvas.height * currentZoom;
+  
+  const left = (containerRect.width - scaledWidth) / 2 + panX;
+  const top = (containerRect.height - scaledHeight) / 2 + panY;
+  
+  wrapper.style.transform = `translate(${left}px, ${top}px) scale(${currentZoom})`;
+  wrapper.style.transformOrigin = 'top left';
+  
+  // Update zoom level display
+  if (zoomDisplay) {
+    const percentage = Math.round(currentZoom * 100);
+    if (percentage === 100) {
+      zoomDisplay.textContent = '100%';
+    } else if (currentZoom < 0.1) {
+      zoomDisplay.textContent = `${(currentZoom * 100).toFixed(1)}%`;
+    } else {
+      zoomDisplay.textContent = `${percentage}%`;
+    }
+  }
 }
 
 /**
