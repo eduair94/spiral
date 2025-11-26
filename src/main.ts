@@ -643,43 +643,6 @@ function init(): void {
                 💡 SVG format is recommended for large-format printing to maintain crisp edges at any scale.
               </p>
             </div>
-            
-            <!-- Specifications Card -->
-            <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-              <h2 class="text-lg font-semibold text-purple-400 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                Specifications
-              </h2>
-              
-              <ul class="text-sm text-slate-300 space-y-2">
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  Golden spiral with φ = 1.6180339887
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  Starts at 3 o'clock, curves clockwise
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  2mm line width (for 1.5-2mm copper wire)
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  Light-gray guide circles at φ intervals
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  90° marker dots on each guide circle
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-amber-400">•</span>
-                  Center marked with "O"
-                </li>
-              </ul>
-            </div>
           </div>
           
           <!-- Right Panel: Canvas -->
@@ -734,6 +697,101 @@ function init(): void {
                 <li>The spiral line should be exactly 2mm wide</li>
                 <li>Trace the 3.33m copper wire directly on the black line</li>
               </ol>
+            </div>
+            
+            <!-- Design Requirements -->
+            <div class="mt-6 bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+              <h3 class="text-lg font-semibold text-purple-400 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Design Requirements
+              </h3>
+              
+              <div class="text-sm text-slate-300 space-y-3">
+                <p class="text-slate-400 italic text-xs mb-3">
+                  Golden ratio implosion coil template specifications:
+                </p>
+                
+                <ul class="space-y-2">
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Total spiral path length: <strong class="text-white">exactly 3.33 meters</strong></span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Golden ratio: <strong class="text-white">φ = 1.6180339887</strong> per 360° turn</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400">⚠</span>
+                    <span>Initial radius: <strong class="text-white">15 mm</strong> (first small loop) <em class="text-amber-400">— see note below</em></span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Line width: <strong class="text-white">exactly 2 mm</strong> (for 1.5-2mm copper wire)</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Turns: <strong class="text-white">7 full + ½ of 8th</strong> (7.5 turns total)</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Start: <strong class="text-white">3 o'clock position</strong>, curves clockwise</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-400">⚠</span>
+                    <span>Final radius: <strong class="text-white">≈ 25.3 cm</strong>, diameter ≈ 50.6 cm <em class="text-amber-400">— see note below</em></span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Center point: <strong class="text-white">black dot with "O"</strong></span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span>Guide circles at: <strong class="text-white">1.5, 2.4, 3.9, 6.3, 10.2, 16.5, 26.7 cm</strong></span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-green-400">✓</span>
+                    <span><strong class="text-white">90° marker dots</strong> on each guide circle</span>
+                  </li>
+                </ul>
+                
+                <div class="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                  <p class="text-xs text-purple-300">
+                    <strong>Purpose:</strong> Print 1:1 scale template to trace 3.33m copper wire directly on the spiral line for implosion coil construction.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Mathematical Note -->
+            <div class="mt-6 bg-linear-to-r from-red-500/10 to-orange-500/10 border border-red-500/30 rounded-xl p-6">
+              <h3 class="text-lg font-semibold text-red-400 mb-3">⚠️ Mathematical Constraint Note</h3>
+              <div class="text-sm text-slate-300 space-y-3">
+                <p>
+                  The original requirements contain a <strong class="text-red-400">mathematical impossibility</strong>. 
+                  For a golden spiral with φ = 1.6180339887, you <strong>cannot</strong> simultaneously achieve:
+                </p>
+                <ul class="list-disc list-inside space-y-1 ml-2">
+                  <li>Path length = exactly 3.33 meters</li>
+                  <li>Initial radius = 15 mm</li>
+                  <li>Exactly 7.5 turns</li>
+                  <li>Final radius = 25.3 cm</li>
+                </ul>
+                <p class="mt-3">
+                  <strong class="text-white">This implementation prioritizes:</strong>
+                </p>
+                <ul class="list-disc list-inside space-y-1 ml-2">
+                  <li><span class="text-green-400">✓</span> Path length = <strong>exactly 3.33 meters</strong></li>
+                  <li><span class="text-green-400">✓</span> Turns = <strong>exactly 7.5</strong></li>
+                  <li><span class="text-amber-400">→</span> Initial radius is <strong>calculated (~7.08 mm)</strong> to satisfy these constraints</li>
+                  <li><span class="text-amber-400">→</span> Final radius is <strong>~26.1 cm</strong> (diameter ~52.3 cm)</li>
+                </ul>
+                <p class="mt-3 text-xs text-slate-400">
+                  The "Calculated Values" panel on the left shows the actual mathematically precise values used. 
+                  You can adjust the parameters in the Configuration panel to explore different trade-offs.
+                </p>
+              </div>
             </div>
           </div>
         </div>
