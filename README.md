@@ -1,188 +1,149 @@
-# ��� Golden Ratio Spiral Generator
+# Golden Ratio Spiral Generator
 
-A precision SPA for generating printable golden ratio spiral templates, specifically designed for creating 3.33-meter copper wire implosion coils.
+A web application that generates printable golden ratio (Fibonacci) spiral templates. Based on Robert Edward Grant's "Golden Mean Ratio Spiral" from Code X.
 
-![Golden Spiral Preview](https://img.shields.io/badge/φ-1.6180339887-gold)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Golden Ratio Spiral](https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Fibonacci_spiral_34.svg/220px-Fibonacci_spiral_34.svg.png)
 
-## ��� Features
+##  Live Demo
 
-- **Mathematically Precise**: Golden spiral with φ = 1.6180339887 growth factor per 360° turn
-- **Customizable Parameters**: Adjust initial radius, path length, line width, and DPI
-- **Print-Ready Output**: Export as PNG or SVG at 1:1 scale for direct printing
-- **Guide Circles**: Faint concentric circles at φ intervals with 90° marker dots
-- **Real-time Preview**: Interactive canvas with calculated values display
-- **Responsive UI**: Modern dark theme with Tailwind CSS
+**[Try it now on GitHub Pages](https://eduair94.github.io/spiral/)**
 
-## ��� Default Specifications
+## Mathematical Foundation
 
-| Property | Value |
-|----------|-------|
-| Golden Ratio (φ) | 1.6180339887 |
-| Initial Radius | 15 mm |
-| Total Path Length | 3.33 meters (3330 mm) |
-| Line Width | 2 mm |
-| Final Radius | ~25.3 cm |
-| Total Diameter | ~50.6 cm |
-| Turns | 7.5 (7 full + half of 8th) |
-| Start Position | 3 o'clock (pointing right) |
-| Direction | Clockwise when viewed from above |
+### The Golden Spiral Equation
 
-## ��� Live Demo
+The spiral follows the polar form equation:
 
-Visit the live application: **[https://eduair94.github.io/spiral/](https://eduair94.github.io/spiral/)**
-
-## ���️ Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/eduair94/spiral.git
-cd spiral
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-## ��� Usage
-
-1. **Configure**: Adjust parameters in the left panel (initial radius, path length, line width, DPI)
-2. **Regenerate**: Click "Regenerate Spiral" to update the preview
-3. **Export**: 
-   - **Print**: Opens print dialog with 1:1 scale
-   - **PNG**: Downloads high-resolution raster image
-   - **SVG**: Downloads vector file (recommended for large-format printing)
-
-## ���️ Printing Instructions
-
-1. Download the **SVG file** for best quality at large sizes
-2. Open in a vector editor (Inkscape, Illustrator) or print directly
-3. Set paper size to at least **55cm × 55cm**
-4. Ensure **"Scale: 100%"** or **"Actual Size"** is selected
-5. Verify the center dot measures approximately 4mm diameter
-6. The spiral line should be exactly 2mm wide
-7. Trace the 3.33m copper wire directly on the black line
-
-## ��� Project Structure
-
-```
-spiral/
-├── src/
-│   ├── main.ts          # Main application logic & spiral mathematics
-│   └── style.css        # Tailwind CSS imports & print styles
-├── index.html           # Entry HTML file
-├── vite.config.ts       # Vite configuration with Tailwind & GitHub Pages
-├── package.json         # Project dependencies
-├── tsconfig.json        # TypeScript configuration
-└── .github/
-    └── workflows/
-        └── deploy.yml   # GitHub Actions deployment workflow
-```
-
-## ��� Mathematical Foundation
-
-### Golden Spiral Equation
-
-The golden spiral follows the polar equation:
-
-$$r(\theta) = a \cdot \varphi^{\theta / 2\pi}$$
+$$r(\theta) = r_0 \times \varphi^{\frac{2\theta}{\pi}}$$
 
 Where:
-- $r$ = radius at angle θ
-- $a$ = initial radius (15 mm)
-- $\varphi$ = golden ratio (1.6180339887)
+- $r(\theta)$ = radius at angle θ
+- $r_0$ = initial radius (at θ = 0)
+- $\varphi$ (phi) = the golden ratio ≈ 1.6180339887
 - $\theta$ = angle in radians
 
-### Arc Length Calculation
+This is mathematically equivalent to the logarithmic spiral:
 
-The arc length is computed using numerical integration:
+$$r(\theta) = r_0 \times e^{b\theta}$$
 
-$$L = \int_0^{\theta_{max}} \sqrt{r^2 + \left(\frac{dr}{d\theta}\right)^2} \, d\theta$$
+Where $b = \frac{\ln(\varphi)}{\pi/2} \approx 0.3063$
 
-For a golden spiral:
+### Key Property
 
-$$\frac{dr}{d\theta} = \frac{r \cdot \ln(\varphi)}{2\pi}$$
+**The radius multiplies by φ every quarter turn (90°).**
 
-## ��� Prompt Used
+This is what makes it a TRUE Fibonacci spiral - it perfectly inscribes quarter-circle arcs within Fibonacci-sized squares arranged as nested golden rectangles.
 
-This application was created based on the following specification:
+| Quarter-turns | Multiplier | Approximate Value |
+|---------------|------------|-------------------|
+| 1 (90°) | φ¹ | 1.618× |
+| 4 (360°) | φ⁴ | 6.854× |
+| 8 (720°) | φ⁸ | 46.98× |
+| 28 (7 turns) | φ²⁸ | 710,647× |
 
-> Top-down photograph of a perfect golden ratio implosion coil template printed on a large white sheet of paper on the floor, precisely calibrated so the total length of the spiral path is exactly 3.33 meters when traced with a single continuous wire.
->
-> **Specifications:**
-> - Center point: small black dot with letter "O"
-> - The spiral is a perfectly smooth, solid black line exactly 2 mm wide (representing 1.5–2 mm bare copper wire) along its entire 3.33-meter length
-> - Mathematically accurate golden spiral (growth factor φ = 1.6180339887 per 360° turn)
-> - Starts with initial radius 15 mm (first small loop)
-> - Begins pointing exactly to the right of the center dot (3 o'clock position) and curves clockwise when viewed from above
-> - Completes exactly 7 full turns + half of the 8th turn
-> - Final radius ≈ 25.3 cm, total diameter ≈ 50.6 cm
-> - Very faint light-gray concentric guide circles at exact radii: 1.5 cm, 2.4 cm, 3.9 cm, 6.3 cm, 10.2 cm, 16.5 cm, 26.7 cm, and final radius 25.3 cm
-> - Tiny black dots every 90° on each guide circle
-> - The 2 mm black line is perfectly centered on the true golden spiral trajectory
-> - Clean, high-contrast, realistic paper texture, soft overhead lighting, shot perfectly perpendicular from above
-> - No text or labels except the center "O"
-> - Ultra-precise, ready to print 1:1 and glue the 3.33 m copper wire directly on the black line
+### Default Configuration
 
-## �� Deploying to GitHub Pages
+The application defaults to:
+- **Paper size:** 1000mm × 1000mm (1m × 1m square)
+- **Turns:** 7 complete rotations (28 quarter-turns)
+- **Final radius:** ~450mm (fits within 90% of the 1m paper)
 
-### Automatic Deployment
+Using the formula, the initial radius is calculated as:
 
-This project includes a GitHub Actions workflow for automatic deployment:
+$$r_0 = \frac{r_{final}}{\varphi^{28}} = \frac{450mm}{710,647} \approx 0.00063mm$$
 
-1. Push your code to the `main` branch
-2. GitHub Actions will automatically build and deploy to GitHub Pages
-3. Enable GitHub Pages in your repository settings:
-   - Go to **Settings** → **Pages**
-   - Source: **GitHub Actions**
+That's approximately **0.63 micrometers** - an incredibly small starting point that grows by φ every 90° to reach the final radius after 7 turns!
 
-### Manual Deployment
+### Fibonacci Spiral Construction
+
+The spiral is constructed using the classic Fibonacci method:
+1. Start with two 1×1 squares
+2. Add a 2×2 square adjacent to them (forming a 2×3 rectangle)
+3. Add a 3×3 square (forming a 3×5 rectangle)
+4. Continue with 5×5, 8×8, 13×13, 21×21, 34×34, 55×55...
+5. Draw quarter-circle arcs in each square
+
+The Fibonacci sequence (1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89...) converges to the golden ratio:
+
+$$\lim_{n \to \infty} \frac{F_{n+1}}{F_n} = \varphi$$
+
+## Features
+
+-  **Configurable paper sizes** - From A4 to custom sizes up to 2m
+-  **Adjustable turns** - 1 to 20+ complete rotations
+-  **Show/hide golden rectangles** - Visualize the Fibonacci construction
+- ️ **Print-ready export** - PNG, SVG, and direct print
+-  **Zoom & pan** - Navigate large spirals with ease
+- ↻ **Rotate view** - View the spiral from any angle
+-  **Auto-save settings** - Your configuration persists in localStorage
+
+## Usage
+
+### Installation
 
 ```bash
-# Build the project
+git clone https://github.com/eduair94/spiral.git
+cd spiral
+npm install
+npm run dev
+```
+
+### Building for Production
+
+```bash
 npm run build
-
-# The dist/ folder contains the static files
-# Upload to any static hosting service
 ```
 
-### Configuration
+The built files will be in the `dist/` directory.
 
-Update the `base` path in `vite.config.ts` to match your repository name:
+### Deploying to GitHub Pages
 
-```typescript
-export default defineConfig({
-  base: "/your-repo-name/",
-  // ...
-});
+The project automatically deploys to GitHub Pages when pushing to the `master` branch via GitHub Actions.
+
+## Project Structure
+
+```
+src/
+├── main.ts              # Application entry point
+├── style.css            # Global styles
+├── components/
+│   ├── handlers.ts      # Event handlers
+│   ├── styles.ts        # Component styles
+│   └── template.ts      # HTML templates
+└── lib/
+    ├── config.ts        # Configuration types & defaults
+    ├── constants.ts     # Mathematical constants (φ, b, etc.)
+    ├── export.ts        # PNG/SVG/print export
+    ├── math.ts          # Spiral calculations
+    ├── renderer.ts      # Canvas rendering
+    ├── state.ts         # Application state management
+    └── zoom.ts          # Zoom & pan controls
 ```
 
-## ��� Technologies
+## Technical Details
 
-- **[Vite](https://vitejs.dev/)** - Next Generation Frontend Tooling
-- **[TypeScript](https://www.typescriptlang.org/)** - JavaScript with syntax for types
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **Canvas API** - For precise spiral rendering
-- **SVG Export** - For vector-quality output
+### Technologies
 
-## �� License
+- **Vite** - Build tool & dev server
+- **TypeScript** - Type-safe JavaScript
+- **Canvas API** - High-performance 2D rendering
+- **Tailwind CSS** - Utility-first styling
 
-MIT License - feel free to use this for your implosion coil projects!
+### Rendering Approach
 
-## ��� Contributing
+The spiral is rendered using the TRUE Fibonacci method:
+1. Generate Fibonacci sequence for the required number of quarter-turns
+2. Place squares according to the golden rectangle construction
+3. Draw quarter-circle arcs inscribed in each square
+4. Arc centers are at corners of squares, sweeping 90° each
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This produces a mathematically accurate golden spiral that perfectly matches the nested golden rectangle construction.
 
----
+## License
 
-**φ = 1.6180339887** | Golden Ratio Spiral Generator | Implosion Coil Template
+MIT License - feel free to use this for any purpose.
+
+## Acknowledgments
+
+- Mathematical foundation based on Robert Edward Grant's research
+- Inspired by the beauty of φ in nature and art
