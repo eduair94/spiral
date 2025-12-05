@@ -301,9 +301,17 @@ input, select {
   width: var(--panel-collapsed-width);
 }
 
-.config-panel.collapsed .panel-content,
-.config-panel.collapsed .panel-header h2 span:last-child {
+.config-panel.collapsed .panel-content {
   display: none;
+}
+
+.config-panel.collapsed .panel-header h2 {
+  display: none;
+}
+
+.config-panel.collapsed .panel-header {
+  justify-content: center;
+  padding: 0;
 }
 
 .panel-header {

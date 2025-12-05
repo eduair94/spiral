@@ -127,31 +127,6 @@ export function generateSpiralPoints(
 /**
  * Generate radii for guide circles at golden ratio intervals.
  * 
- * Each successive radius is φ times the previous, creating
- * circles that mark the natural growth points of the spiral.
- * 
- * @param initialRadius - Starting radius (in millimeters)
- * @param finalRadius - Maximum radius to include
- * @returns Sorted array of radii in millimeters
- */
-export function generateGuideRadii(initialRadius: number, finalRadius: number): number[] {
-  const radii: number[] = [];
-  let r = initialRadius;
-  
-  // Generate radii at φ intervals
-  while (r <= finalRadius * 1.1) {
-    radii.push(r);
-    r *= PHI;
-  }
-  
-  // Ensure final radius is included
-  if (!radii.some(rad => Math.abs(rad - finalRadius) < 1)) {
-    radii.push(finalRadius);
-  }
-  
-  return radii.sort((a, b) => a - b);
-}
-
 /**
  * Convert millimeters to pixels based on DPI.
  * 
@@ -278,28 +253,6 @@ export function generateGoldenRectangles(
     size *= PHI;
   }
   
+  
   return rectangles;
-}
-
-/**
- * Generate radial lines from center for the golden spiral diagram.
- * These are the annotation lines shown in Robert Edward Grant's diagram.
- * 
- * @param numLines - Number of radial lines
- * @param maxRadius - Maximum radius for the lines
- * @returns Array of angle/radius pairs
- */
-export function generateRadialLines(
-  numLines: number,
-  maxRadius: number
-): { angle: number; radius: number }[] {
-  const lines: { angle: number; radius: number }[] = [];
-  
-  // Generate lines at various angles based on the golden spiral
-  for (let i = 0; i < numLines; i++) {
-    const angle = (i * 2 * Math.PI) / numLines;
-    lines.push({ angle, radius: maxRadius });
-  }
-  
-  return lines;
 }

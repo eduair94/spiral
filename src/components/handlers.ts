@@ -122,6 +122,9 @@ function setupZoomHandlers(): void {
   document.getElementById('btn-zoom-in')?.addEventListener('click', zoomIn);
   document.getElementById('btn-zoom-out')?.addEventListener('click', zoomOut);
   document.getElementById('btn-zoom-reset')?.addEventListener('click', resetView);
+  document.getElementById('btn-rotate')?.addEventListener('click', () => {
+    state.rotate();
+  });
   
   // Setup canvas zoom/pan
   const wrapper = document.getElementById('canvas-wrapper');
@@ -138,10 +141,10 @@ export function setupStateSubscriptions(_redrawFn: () => void): void {
     // Update zoom display
     updateZoomDisplay(appState.zoom);
     
-    // Update canvas transform for zoom/pan
+    // Update canvas transform for zoom/pan/rotation
     const canvas = document.getElementById('spiral-canvas') as HTMLCanvasElement | null;
     if (canvas) {
-      canvas.style.transform = `scale(${appState.zoom}) translate(${appState.panX / appState.zoom}px, ${appState.panY / appState.zoom}px)`;
+      canvas.style.transform = `scale(${appState.zoom}) translate(${appState.panX / appState.zoom}px, ${appState.panY / appState.zoom}px) rotate(${appState.rotation}deg)`;
     }
     
     // Update panel collapsed state

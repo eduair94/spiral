@@ -1,7 +1,7 @@
 /**
  * @fileoverview Application state management for the spiral generator.
  * 
- * This module implements a simple reactive state system using
+ * This implements a simple reactive state system using
  * a publish-subscribe pattern. All UI updates flow through this
  * centralized state management.
  */
@@ -24,6 +24,8 @@ export interface AppState {
   panX: number;
   /** Pan offset Y in pixels */
   panY: number;
+  /** Rotation in degrees (0, 90, 180, 270) */
+  rotation: number;
   /** Whether currently dragging */
   isDragging: boolean;
   /** UI panel collapsed state */
@@ -49,6 +51,7 @@ class StateManager {
       zoom: 1.0,
       panX: 0,
       panY: 0,
+      rotation: 0,
       isDragging: false,
       isConfigCollapsed: false
     };
@@ -84,17 +87,26 @@ class StateManager {
   }
   
   /**
-   * Reset configuration to defaults.
+   * Reset config to defaults and clear localStorage.
    */
   resetConfig(): void {
+    // Clear localStorage
+    try {
+      localStorage.removeItem('spiral-generator-state');
+    } catch {
+      // localStorage might be unavailable
+    }
+    
+    // Reset to defaults
     this.state = {
       ...this.state,
       config: { ...DEFAULT_CONFIG },
       zoom: 1.0,
       panX: 0,
-      panY: 0
+      panY: 0,
+      rotation: 0,
+      isConfigCollapsed: false
     };
-    this.saveToStorage();
     this.notify();
   }
   
@@ -110,8 +122,8 @@ class StateManager {
    * Update zoom level.
    */
   setZoom(zoom: number): void {
-    // Clamp zoom between 10% and 500%
-    const clampedZoom = Math.max(0.1, Math.min(5.0, zoom));
+    // Clamp zoom between 10% and 10000%
+    const clampedZoom = Math.max(0.1, Math.min(100.0, zoom));
     this.state = { ...this.state, zoom: clampedZoom };
     this.notify();
   }
@@ -125,10 +137,19 @@ class StateManager {
   }
   
   /**
-   * Reset view (zoom and pan).
+   * Reset view (zoom, pan, and rotation).
    */
   resetView(): void {
-    this.state = { ...this.state, zoom: 1.0, panX: 0, panY: 0 };
+    this.state = { ...this.state, zoom: 1.0, panX: 0, panY: 0, rotation: 0 };
+    this.notify();
+  }
+  
+  /**
+   * Rotate the canvas by 90 degrees clockwise.
+   */
+  rotate(): void {
+    const newRotation = (this.state.rotation + 90) % 360;
+    this.state = { ...this.state, rotation: newRotation };
     this.notify();
   }
   

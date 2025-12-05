@@ -1,46 +1,43 @@
 /**
  * @fileoverview Canvas rendering functions for the spiral generator.
  * 
- * This module handles all 2D canvas drawing operations including
- * the spiral itself, nested golden rectangles, radial lines, 
- * guide circles, and center marks.
+ * TRUE Fibonacci spiral: quarter-circle arcs inscribed in squares
+ * following the Fibonacci sequence (1, 1, 2, 3, 5, 8, 13, 21, 34, 55...)
  * 
- * Based on Robert Edward Grant's "Golden Mean Ratio Spiral" from Code X.
+ * Each arc is centered at a corner of its square and sweeps 90 degrees.
  */
 
 import type { SpiralConfig } from './config';
-import { PHI } from './constants';
 import {
-    calculateArcLength,
-    calculateSpiralFromPaper,
-    generateGuideRadii,
-    generateSpiralPoints,
-    goldenSpiralRadius,
-    mmToPixels
+  calculateSpiralFromPaper,
+  mmToPixels
 } from './math';
+
+/**
+ * Generate Fibonacci sequence up to n terms
+ */
+function generateFibonacci(n: number): number[] {
+  if (n <= 0) return [];
+  if (n === 1) return [1];
+  
+  const fib = [1, 1];
+  for (let i = 2; i < n; i++) {
+    fib.push(fib[i - 1] + fib[i - 2]);
+  }
+  return fib;
+}
 
 /**
  * Result of drawing a spiral, containing calculated values.
  */
 export interface DrawResult {
-  /** Total path length of the spiral in millimeters */
   pathLength: number;
-  /** Initial radius of the spiral in millimeters */
   initialRadius: number;
-  /** Final radius of the spiral in millimeters */
   finalRadius: number;
 }
 
 /**
  * Draw the complete spiral template on a canvas.
- * 
- * This is the main rendering function that orchestrates drawing
- * all visual elements: grid, golden rectangles, radial lines, 
- * guide circles, spiral, and center mark.
- * 
- * @param canvas - HTML canvas element to draw on
- * @param config - Spiral configuration
- * @returns Calculated values from the drawing
  */
 export function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): DrawResult {
   const ctx = canvas.getContext('2d');
@@ -49,13 +46,27 @@ export function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): Dra
   }
   
   // Calculate spiral parameters from paper size
-  const { initialRadius, finalRadius, maxTheta } = calculateSpiralFromPaper(
+  const { quarterTurns } = calculateSpiralFromPaper(
     config.paperWidth,
     config.paperHeight,
     config.turns
   );
   
-  const pathLength = calculateArcLength(initialRadius, maxTheta);
+  // Generate Fibonacci sequence for the squares
+  const fibSequence = generateFibonacci(quarterTurns + 2);
+  
+  // Calculate the bounding box and square positions
+  const { width: bbWidth, height: bbHeight, offsetX, offsetY } = calculateBoundingBox(fibSequence, quarterTurns);
+  
+  // Scale to fit the paper with margin
+  const margin = 0.9; // 90% of available space
+  const availableWidth = config.paperWidth * margin;
+  const availableHeight = config.paperHeight * margin;
+  
+  // Scale factor to fit the bounding box into available space
+  const scaleX = availableWidth / bbWidth;
+  const scaleY = availableHeight / bbHeight;
+  const scale = Math.min(scaleX, scaleY);
   
   // Set canvas dimensions based on paper size
   const canvasWidthPx = mmToPixels(config.paperWidth, config.dpi);
@@ -63,8 +74,21 @@ export function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): Dra
   canvas.width = canvasWidthPx;
   canvas.height = canvasHeightPx;
   
-  const centerX = canvasWidthPx / 2;
-  const centerY = canvasHeightPx / 2;
+  // Calculate path length (sum of quarter-circle arc lengths)
+  let pathLength = 0;
+  for (let i = 0; i < quarterTurns; i++) {
+    const radius = fibSequence[i] * scale;
+    pathLength += (Math.PI / 2) * radius; // quarter circle arc length
+  }
+  
+  // Canvas center
+  const canvasCenterX = canvasWidthPx / 2;
+  const canvasCenterY = canvasHeightPx / 2;
+  
+  // The offset tells us how far from the first square's center the bounding box center is
+  // We need to shift the drawing origin so the bounding box ends up centered
+  const drawOriginX = canvasCenterX - mmToPixels(offsetX * scale, config.dpi);
+  const drawOriginY = canvasCenterY - mmToPixels(offsetY * scale, config.dpi);
   
   // Clear with white background
   ctx.fillStyle = '#ffffff';
@@ -72,166 +96,272 @@ export function drawSpiral(canvas: HTMLCanvasElement, config: SpiralConfig): Dra
   
   // Draw layers in order (back to front)
   if (config.showGrid) {
-    drawPrintGrid(ctx, canvasWidthPx, canvasHeightPx, config.gridSpacingMM, config.paperWidth, config.paperHeight, config.dpi);
-  }
-  
-  // Draw radial lines first (background)
-  if (config.showRadialLines) {
-    drawRadialLines(ctx, centerX, centerY, initialRadius, maxTheta, config.dpi);
+    drawPrintGrid(ctx, canvasWidthPx, canvasHeightPx, config.gridSpacingMM, config.dpi);
   }
   
   // Draw nested golden rectangles
   if (config.showGoldenRectangles) {
-    drawGoldenRectangles(ctx, centerX, centerY, initialRadius, config.turns, config.dpi);
+    drawFibonacciRectangles(ctx, drawOriginX, drawOriginY, fibSequence, scale, quarterTurns, config.dpi);
   }
+
+  // Draw the spiral
+  drawFibonacciSpiral(ctx, drawOriginX, drawOriginY, fibSequence, scale, quarterTurns, config.lineWidth, config.dpi);
   
-  if (config.showGuideCircles) {
-    drawGuideCircles(ctx, centerX, centerY, initialRadius, finalRadius, config.dpi);
-  }
-  
-  drawSpiralPath(ctx, centerX, centerY, initialRadius, maxTheta, config.lineWidth, config.dpi);
-  // Center mark removed to avoid hiding the inner spiral turns
-  
-  return { pathLength, initialRadius, finalRadius };
+  return { 
+    pathLength, 
+    initialRadius: fibSequence[0] * scale, 
+    finalRadius: fibSequence[quarterTurns - 1] * scale 
+  };
 }
 
 /**
- * Draw nested golden rectangles.
- * 
- * Each rectangle rotates 90° and scales by φ.
- * This creates the classic Fibonacci spiral construction.
+ * Calculate the bounding box dimensions of all Fibonacci squares.
+ * Also returns the offset from the first square center to the bounding box center.
  */
-function drawGoldenRectangles(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  initialRadius: number,
-  turns: number,
-  dpi: number
-): void {
-  // Number of quarter turns = turns * 4
-  const numRects = Math.ceil(turns * 4) + 1;
+function calculateBoundingBox(fibSequence: number[], numSquares: number): { 
+  width: number; 
+  height: number;
+  offsetX: number;
+  offsetY: number;
+} {
+  if (numSquares <= 0) return { width: 1, height: 1, offsetX: 0, offsetY: 0 };
   
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.lineWidth = mmToPixels(0.3, dpi);
+  // Simulate square placement to find bounding box
+  // First square centered at origin (0,0)
+  const firstSize = fibSequence[0];
+  let minX = -firstSize / 2;
+  let maxX = firstSize / 2;
+  let minY = -firstSize / 2;
+  let maxY = firstSize / 2;
   
-  // We'll build rectangles by tracking the spiral's quarter-turn points
-  // At each 90° step, the radius multiplies by φ
+  // Track placement
+  const squares: { x: number; y: number; size: number }[] = [];
+  squares.push({ x: minX, y: minY, size: firstSize });
   
-  // Track the "pole" (center of curvature) for each quarter
-  let poleX = centerX;
-  let poleY = centerY;
-  
-  // Start with the innermost square
-  let currentSize = initialRadius * 2; // Diameter becomes the first square side
-  
-  // Direction vectors for each quarter (rotating clockwise)
-  // Quarter 0: right, Quarter 1: down, Quarter 2: left, Quarter 3: up
-  const directions = [
-    { dx: 1, dy: 0 },   // right
-    { dx: 0, dy: 1 },   // down
-    { dx: -1, dy: 0 },  // left
-    { dx: 0, dy: -1 }   // up
-  ];
-  
-  for (let i = 0; i < numRects; i++) {
-    const quarterIndex = i % 4;
-    const dir = directions[quarterIndex];
+  for (let i = 1; i < numSquares; i++) {
+    const size = fibSequence[i];
+    const prevSquares = squares.slice(0, i);
     
-    // Draw the square for this quarter
-    const squareSizePx = mmToPixels(currentSize, dpi);
-    
-    // Calculate square position based on pole and direction
-    let squareX: number, squareY: number;
-    
-    switch (quarterIndex) {
-      case 0: // Square extends to the right
-        squareX = poleX;
-        squareY = poleY - squareSizePx;
-        break;
-      case 1: // Square extends downward
-        squareX = poleX;
-        squareY = poleY;
-        break;
-      case 2: // Square extends to the left
-        squareX = poleX - squareSizePx;
-        squareY = poleY;
-        break;
-      case 3: // Square extends upward
-        squareX = poleX - squareSizePx;
-        squareY = poleY - squareSizePx;
-        break;
-      default:
-        squareX = poleX;
-        squareY = poleY;
+    // Recalculate bounding box of existing squares
+    let bbMinX = Infinity, bbMinY = Infinity, bbMaxX = -Infinity, bbMaxY = -Infinity;
+    for (const sq of prevSquares) {
+      bbMinX = Math.min(bbMinX, sq.x);
+      bbMinY = Math.min(bbMinY, sq.y);
+      bbMaxX = Math.max(bbMaxX, sq.x + sq.size);
+      bbMaxY = Math.max(bbMaxY, sq.y + sq.size);
     }
     
-    // Draw the square
-    ctx.strokeRect(squareX, squareY, squareSizePx, squareSizePx);
+    const dir = i % 4;
+    let newX: number, newY: number;
     
-    // Move the pole for the next iteration
-    poleX += dir.dx * squareSizePx;
-    poleY += dir.dy * squareSizePx;
+    switch (dir) {
+      case 1: newX = bbMaxX; newY = bbMinY; break;
+      case 2: newX = bbMaxX - size; newY = bbMaxY; break;
+      case 3: newX = bbMinX - size; newY = bbMaxY - size; break;
+      case 0: newX = bbMinX; newY = bbMinY - size; break;
+      default: newX = bbMaxX; newY = bbMinY;
+    }
     
-    // Scale up for next square
-    currentSize *= PHI;
+    squares.push({ x: newX, y: newY, size: size });
+    
+    // Update overall bounds
+    minX = Math.min(minX, newX);
+    minY = Math.min(minY, newY);
+    maxX = Math.max(maxX, newX + size);
+    maxY = Math.max(maxY, newY + size);
+  }
+  
+  const width = maxX - minX;
+  const height = maxY - minY;
+  
+  // Center of bounding box relative to origin (which is first square center)
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  
+  return { width, height, offsetX: centerX, offsetY: centerY };
+}
+
+/**
+ * Draw Fibonacci squares (golden rectangles construction).
+ * Builds outward from center, placing each new square adjacent to form golden rectangle.
+ */
+function drawFibonacciRectangles(
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  fibSequence: number[],
+  scale: number,
+  numSquares: number,
+  dpi: number
+): void {
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.lineWidth = mmToPixels(0.25, dpi);
+  
+  // Build the rectangle positions by tracking where each square goes
+  // Starting from center, we place squares in order: first two 1x1 squares,
+  // then 2x2, 3x3, 5x5, etc.
+  
+  // We'll track the bounding box of all placed squares
+  // and place each new square on the appropriate side
+  
+  const squares: { x: number; y: number; size: number }[] = [];
+  
+  // Place first square centered at origin
+  const firstSize = mmToPixels(fibSequence[0] * scale, dpi);
+  squares.push({ x: startX - firstSize / 2, y: startY - firstSize / 2, size: firstSize });
+  
+  // For subsequent squares, place them adjacent
+  for (let i = 1; i < numSquares; i++) {
+    const sizePx = mmToPixels(fibSequence[i] * scale, dpi);
+    const prevSquares = squares.slice(0, i);
+    
+    // Calculate bounding box of existing squares
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const sq of prevSquares) {
+      minX = Math.min(minX, sq.x);
+      minY = Math.min(minY, sq.y);
+      maxX = Math.max(maxX, sq.x + sq.size);
+      maxY = Math.max(maxY, sq.y + sq.size);
+    }
+    
+    // Place new square based on rotation pattern
+    const dir = i % 4;
+    let newX: number, newY: number;
+    
+    switch (dir) {
+      case 1: // Place to the right
+        newX = maxX;
+        newY = minY;
+        break;
+      case 2: // Place below
+        newX = maxX - sizePx;
+        newY = maxY;
+        break;
+      case 3: // Place to the left
+        newX = minX - sizePx;
+        newY = maxY - sizePx;
+        break;
+      case 0: // Place above
+        newX = minX;
+        newY = minY - sizePx;
+        break;
+      default:
+        newX = maxX;
+        newY = minY;
+    }
+    
+    squares.push({ x: newX, y: newY, size: sizePx });
+  }
+  
+  // Draw all squares
+  for (const sq of squares) {
+    ctx.strokeRect(sq.x, sq.y, sq.size, sq.size);
   }
 }
 
 /**
- * Draw radial lines emanating from center.
- * 
- * These lines show the angular positions where the spiral
- * intersects key mathematical ratios.
+ * Draw the Fibonacci spiral using quarter-circle arcs.
+ * Each arc is inscribed in its corresponding Fibonacci square.
  */
-function drawRadialLines(
+function drawFibonacciSpiral(
   ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  initialRadius: number,
-  maxTheta: number,
+  startX: number,
+  startY: number,
+  fibSequence: number[],
+  scale: number,
+  numArcs: number,
+  lineWidth: number,
   dpi: number
 ): void {
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-  ctx.lineWidth = mmToPixels(0.15, dpi);
+  ctx.strokeStyle = '#000000';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   
-  // Draw lines at quarter-turn intervals (every 90°)
-  // The golden spiral passes through these points
-  const numQuarters = Math.ceil(maxTheta / (Math.PI / 2));
+  // Same square placement logic as rectangles
+  const squares: { x: number; y: number; size: number }[] = [];
   
-  for (let i = 0; i <= numQuarters; i++) {
-    const theta = i * (Math.PI / 2);
-    const radius = goldenSpiralRadius(theta, initialRadius);
-    const radiusPx = mmToPixels(radius, dpi);
+  const firstSize = mmToPixels(fibSequence[0] * scale, dpi);
+  squares.push({ x: startX - firstSize / 2, y: startY - firstSize / 2, size: firstSize });
+  
+  for (let i = 1; i < numArcs; i++) {
+    const sizePx = mmToPixels(fibSequence[i] * scale, dpi);
+    const prevSquares = squares.slice(0, i);
     
-    // Extend the line beyond the spiral
-    const extendedRadius = radiusPx * 1.3;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const sq of prevSquares) {
+      minX = Math.min(minX, sq.x);
+      minY = Math.min(minY, sq.y);
+      maxX = Math.max(maxX, sq.x + sq.size);
+      maxY = Math.max(maxY, sq.y + sq.size);
+    }
     
-    // Calculate end point (clockwise rotation)
-    const endX = centerX + extendedRadius * Math.cos(-theta);
-    const endY = centerY + extendedRadius * Math.sin(-theta);
+    const dir = i % 4;
+    let newX: number, newY: number;
     
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
+    switch (dir) {
+      case 1: newX = maxX; newY = minY; break;
+      case 2: newX = maxX - sizePx; newY = maxY; break;
+      case 3: newX = minX - sizePx; newY = maxY - sizePx; break;
+      case 0: newX = minX; newY = minY - sizePx; break;
+      default: newX = maxX; newY = minY;
+    }
+    
+    squares.push({ x: newX, y: newY, size: sizePx });
   }
   
-  // Draw additional radial lines at finer intervals (every 15°) for the full effect
-  const fineInterval = Math.PI / 12; // 15 degrees
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+  // Now draw arcs in each square
+  // The arc center is at the corner of the square where the spiral "pivots"
+  // Arc sweeps 90 degrees inside the square
   
-  for (let theta = 0; theta <= maxTheta; theta += fineInterval) {
-    const radius = goldenSpiralRadius(theta, initialRadius);
-    const radiusPx = mmToPixels(radius, dpi);
-    const extendedRadius = radiusPx * 1.2;
+  for (let i = 0; i < numArcs; i++) {
+    const sq = squares[i];
+    const dir = i % 4;
+    const radiusPx = sq.size;
     
-    const endX = centerX + extendedRadius * Math.cos(-theta);
-    const endY = centerY + extendedRadius * Math.sin(-theta);
+    // Determine arc center (the pivot corner) and arc angles
+    let arcX: number, arcY: number;
+    let startAngle: number, endAngle: number;
     
+    switch (dir) {
+      case 0: // Arc center at bottom-right corner, sweep from top to left (180° to 270°)
+        arcX = sq.x + sq.size;
+        arcY = sq.y + sq.size;
+        startAngle = Math.PI;
+        endAngle = Math.PI * 1.5;
+        break;
+      case 1: // Arc center at bottom-left corner, sweep from left to bottom (270° to 360°)
+        arcX = sq.x;
+        arcY = sq.y + sq.size;
+        startAngle = Math.PI * 1.5;
+        endAngle = Math.PI * 2;
+        break;
+      case 2: // Arc center at top-left corner, sweep from bottom to right (0° to 90°)
+        arcX = sq.x;
+        arcY = sq.y;
+        startAngle = 0;
+        endAngle = Math.PI * 0.5;
+        break;
+      case 3: // Arc center at top-right corner, sweep from right to top (90° to 180°)
+        arcX = sq.x + sq.size;
+        arcY = sq.y;
+        startAngle = Math.PI * 0.5;
+        endAngle = Math.PI;
+        break;
+      default:
+        arcX = sq.x + sq.size;
+        arcY = sq.y + sq.size;
+        startAngle = Math.PI;
+        endAngle = Math.PI * 1.5;
+    }
+    
+    // Variable line width
+    const minLineWidthPx = mmToPixels(0.2, dpi);
+    const maxLineWidthPx = mmToPixels(lineWidth, dpi);
+    const arcLineWidth = Math.max(minLineWidthPx, Math.min(radiusPx * 0.015, maxLineWidthPx));
+    
+    ctx.lineWidth = arcLineWidth;
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(endX, endY);
+    ctx.arc(arcX, arcY, radiusPx, startAngle, endAngle);
     ctx.stroke();
   }
 }
@@ -244,8 +374,6 @@ function drawPrintGrid(
   canvasWidthPx: number,
   canvasHeightPx: number,
   gridSpacingMM: number,
-  _paperWidthMM: number,
-  _paperHeightMM: number,
   dpi: number
 ): void {
   const gridSpacingPx = mmToPixels(gridSpacingMM, dpi);
@@ -284,97 +412,4 @@ function drawPrintGrid(
   ctx.moveTo(0, centerY);
   ctx.lineTo(canvasWidthPx, centerY);
   ctx.stroke();
-}
-
-/**
- * Draw guide circles at golden ratio intervals.
- */
-function drawGuideCircles(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  initialRadius: number,
-  finalRadius: number,
-  dpi: number
-): void {
-  const radii = generateGuideRadii(initialRadius, finalRadius);
-  
-  ctx.strokeStyle = 'rgba(180, 180, 180, 0.4)';
-  ctx.lineWidth = mmToPixels(0.25, dpi);
-  
-  for (const radius of radii) {
-    const radiusPixels = mmToPixels(radius, dpi);
-    
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radiusPixels, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    // Only draw 90° marker dots for circles larger than 5mm
-    // to avoid obscuring the inner spiral turns
-    if (radius > 5) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-      // Scale dot size proportionally to radius (min 0.3mm, max 0.6mm)
-      const dotRadius = mmToPixels(Math.min(0.6, Math.max(0.3, radius * 0.02)), dpi);
-      
-      for (let angle = 0; angle < 360; angle += 90) {
-        const rad = (angle * Math.PI) / 180;
-        const dotX = centerX + radiusPixels * Math.cos(rad);
-        const dotY = centerY + radiusPixels * Math.sin(rad);
-        
-        ctx.beginPath();
-        ctx.arc(dotX, dotY, dotRadius, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    }
-  }
-}
-
-/**
- * Draw the main spiral path with variable line width.
- * Line width scales proportionally to the radius so inner turns are visible.
- */
-function drawSpiralPath(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  initialRadius: number,
-  maxTheta: number,
-  lineWidth: number,
-  dpi: number
-): void {
-  const points = generateSpiralPoints(initialRadius, maxTheta);
-  
-  if (points.length < 2) return;
-  
-  ctx.strokeStyle = '#000000';
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  // Line width as a fraction of the radius (e.g., 2% of radius)
-  // This ensures inner turns have visible but proportional lines
-  const lineWidthFraction = 0.02; // 2% of radius
-  const minLineWidthPx = mmToPixels(0.1, dpi); // Minimum line width
-  const maxLineWidthPx = mmToPixels(lineWidth, dpi); // Maximum from config
-  
-  // Draw segments with variable line width
-  for (let i = 1; i < points.length; i++) {
-    const p0 = points[i - 1];
-    const p1 = points[i];
-    
-    const px0 = centerX + mmToPixels(p0.x, dpi);
-    const py0 = centerY + mmToPixels(p0.y, dpi);
-    const px1 = centerX + mmToPixels(p1.x, dpi);
-    const py1 = centerY + mmToPixels(p1.y, dpi);
-    
-    // Calculate line width proportional to average radius of segment
-    const avgRadius = (p0.radius + p1.radius) / 2;
-    const proportionalWidth = mmToPixels(avgRadius * lineWidthFraction, dpi);
-    const segmentLineWidth = Math.max(minLineWidthPx, Math.min(proportionalWidth, maxLineWidthPx));
-    
-    ctx.lineWidth = segmentLineWidth;
-    ctx.beginPath();
-    ctx.moveTo(px0, py0);
-    ctx.lineTo(px1, py1);
-    ctx.stroke();
-  }
 }

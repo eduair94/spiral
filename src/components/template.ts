@@ -53,6 +53,7 @@ export function createAppTemplate(): string {
             <span id="zoom-level" class="zoom-level">100%</span>
             <button id="btn-zoom-out" class="zoom-btn" title="Zoom out (Ctrl+-)">-</button>
             <button id="btn-zoom-reset" class="zoom-btn" title="Reset view (Ctrl+0)">&#8634;</button>
+            <button id="btn-rotate" class="zoom-btn" title="Rotate 90°">&#10227;</button>
           </div>
         </div>
         
@@ -236,22 +237,6 @@ function createConfigForm(): string {
       
       <div class="form-group form-toggle">
         <label class="toggle-label">
-          <input type="checkbox" id="show-radial" name="showRadialLines" checked>
-          <span class="toggle-slider"></span>
-          Radial Lines
-        </label>
-      </div>
-      
-      <div class="form-group form-toggle">
-        <label class="toggle-label">
-          <input type="checkbox" id="show-guides" name="showGuideCircles" checked>
-          <span class="toggle-slider"></span>
-          Guide Circles
-        </label>
-      </div>
-      
-      <div class="form-group form-toggle">
-        <label class="toggle-label">
           <input type="checkbox" id="show-grid" name="showGrid">
           <span class="toggle-slider"></span>
           Print Grid
@@ -336,14 +321,10 @@ export function updateFormFromConfig(config: SpiralConfig): void {
   
   // Update checkboxes
   const showGrid = form.elements.namedItem('showGrid') as HTMLInputElement | null;
-  const showGuides = form.elements.namedItem('showGuideCircles') as HTMLInputElement | null;
   const showRectangles = form.elements.namedItem('showGoldenRectangles') as HTMLInputElement | null;
-  const showRadial = form.elements.namedItem('showRadialLines') as HTMLInputElement | null;
   
   if (showGrid) showGrid.checked = config.showGrid;
-  if (showGuides) showGuides.checked = config.showGuideCircles;
   if (showRectangles) showRectangles.checked = config.showGoldenRectangles;
-  if (showRadial) showRadial.checked = config.showRadialLines;
 }
 
 /**

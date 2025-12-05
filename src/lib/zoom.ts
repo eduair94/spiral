@@ -13,7 +13,7 @@ import { state } from './state';
 // Zoom configuration
 const ZOOM_STEP = 0.1;
 const ZOOM_MIN = 0.1;
-const ZOOM_MAX = 5.0;
+const ZOOM_MAX = 100.0; // 10000%
 
 /**
  * Setup zoom and pan handlers on a canvas container.

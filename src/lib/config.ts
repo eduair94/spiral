@@ -66,14 +66,8 @@ export interface SpiralConfig {
   /** Spacing between grid lines (in millimeters) */
   gridSpacingMM: number;
   
-  /** Whether to display guide circles at golden ratio intervals */
-  showGuideCircles: boolean;
-  
   /** Whether to display nested golden rectangles */
   showGoldenRectangles: boolean;
-  
-  /** Whether to display radial lines from center */
-  showRadialLines: boolean;
 }
 
 /**
@@ -89,9 +83,7 @@ export const DEFAULT_CONFIG: SpiralConfig = {
   dpi: 300,               // Standard print quality
   showGrid: false,        // Hide alignment grid by default
   gridSpacingMM: 50,      // 5cm grid spacing
-  showGuideCircles: true, // Show guide circles
-  showGoldenRectangles: true,  // Show nested golden rectangles
-  showRadialLines: true   // Show radial lines from center
+  showGoldenRectangles: true  // Show nested golden rectangles
 };
 
 /**
