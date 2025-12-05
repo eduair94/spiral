@@ -4,6 +4,9 @@
  * The golden ratio (φ) is the mathematical constant that defines the growth
  * pattern of a golden spiral. This module contains all fixed constants used
  * throughout the application.
+ * 
+ * Based on Robert Edward Grant's "Golden Mean Ratio Spiral" from Code X.
+ * This is the TRUE Fibonacci spiral where φ multiplies every 90°.
  */
 
 /**
@@ -18,16 +21,20 @@
 export const PHI = 1.6180339887498948;
 
 /**
- * Growth factor for the golden spiral.
+ * Growth factor for the TRUE Fibonacci/Golden spiral.
  * 
- * In a golden spiral, the radius multiplies by φ every full turn (360° / 2π radians).
- * This constant (b) is used in the logarithmic spiral formula:
- * r(θ) = a × e^(b×θ)
+ * The radius multiplies by φ every QUARTER turn (90° / π/2 radians).
+ * This is the classic Fibonacci spiral that fits perfectly in nested
+ * golden rectangles.
  * 
- * Derivation: b = ln(φ) / (2π) ≈ 0.0766
- * This means r(θ) = a × φ^(θ/2π)
+ * Formula: r(θ) = a × φ^(2θ/π)
+ * Which is equivalent to: r(θ) = a × e^(b×θ) where b = ln(φ) / (π/2)
+ * 
+ * Growth rate: After N quarter-turns, radius = initial × φ^N
+ * - After 1 turn (4 quarters): radius × φ^4 ≈ × 6.85
+ * - After 2 turns (8 quarters): radius × φ^8 ≈ × 46.98
  */
-export const GOLDEN_B = Math.log(PHI) / (2 * Math.PI);
+export const GOLDEN_B = Math.log(PHI) / (Math.PI / 2);
 
 /**
  * Default points per full turn when generating spiral paths.

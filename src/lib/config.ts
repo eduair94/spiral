@@ -68,22 +68,30 @@ export interface SpiralConfig {
   
   /** Whether to display guide circles at golden ratio intervals */
   showGuideCircles: boolean;
+  
+  /** Whether to display nested golden rectangles */
+  showGoldenRectangles: boolean;
+  
+  /** Whether to display radial lines from center */
+  showRadialLines: boolean;
 }
 
 /**
  * Default configuration values for a new spiral.
  */
 export const DEFAULT_CONFIG: SpiralConfig = {
-  paperSize: 'A3',        // A3 paper by default
-  paperWidth: 420,        // A3 width
-  paperHeight: 297,       // A3 height
+  paperSize: 'custom',    // Custom paper size by default
+  paperWidth: 1000,       // 1000mm width
+  paperHeight: 1000,      // 1000mm height
   margin: 10,             // 10mm margin from edges
   lineWidth: 2,           // 2mm line width
-  turns: 5,               // 5 complete rotations
+  turns: 7,               // 7 complete rotations
   dpi: 300,               // Standard print quality
-  showGrid: true,         // Show alignment grid
+  showGrid: false,        // Hide alignment grid by default
   gridSpacingMM: 50,      // 5cm grid spacing
-  showGuideCircles: true  // Show guide circles
+  showGuideCircles: true, // Show guide circles
+  showGoldenRectangles: true,  // Show nested golden rectangles
+  showRadialLines: true   // Show radial lines from center
 };
 
 /**

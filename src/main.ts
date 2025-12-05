@@ -2,9 +2,15 @@
  * @fileoverview Main entry point for the Golden Ratio Spiral Generator.
  * 
  * This application generates printable spiral templates based on the
- * golden ratio (phi = 1.6180339887). The spiral follows the formula:
- *   r(theta) = a * e^(b*theta)
- * where b = ln(phi) / (2*pi), meaning the radius multiplies by phi every full turn.
+ * golden ratio (phi = 1.6180339887). Based on Robert Edward Grant's 
+ * "Golden Mean Ratio Spiral" from Code X.
+ * 
+ * The spiral follows the formula:
+ *   r(θ) = a * e^(b*θ)
+ * where b = ln(phi) / (π/2), meaning the radius multiplies by phi every 90°.
+ * 
+ * This matches the classic Fibonacci spiral construction with nested
+ * golden rectangles.
  * 
  * @version 2.0.0
  */

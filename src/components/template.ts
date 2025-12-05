@@ -144,9 +144,9 @@ function createConfigForm(): string {
             id="paper-width" 
             name="paperWidth"
             min="50" 
-            max="2000" 
+            max="3000" 
             step="1"
-            value="210"
+            value="1000"
             placeholder="Width"
           >
           <span class="dimension-separator">&#215;</span>
@@ -155,9 +155,9 @@ function createConfigForm(): string {
             id="paper-height" 
             name="paperHeight"
             min="50" 
-            max="2000" 
+            max="3000" 
             step="1"
-            value="297"
+            value="1000"
             placeholder="Height"
           >
         </div>
@@ -176,7 +176,7 @@ function createConfigForm(): string {
           min="1" 
           max="20" 
           step="0.5"
-          value="5"
+          value="7"
         >
       </div>
       
@@ -228,9 +228,17 @@ function createConfigForm(): string {
       <!-- Toggles -->
       <div class="form-group form-toggle">
         <label class="toggle-label">
-          <input type="checkbox" id="show-grid" name="showGrid" checked>
+          <input type="checkbox" id="show-rectangles" name="showGoldenRectangles" checked>
           <span class="toggle-slider"></span>
-          Show Print Grid
+          Golden Rectangles
+        </label>
+      </div>
+      
+      <div class="form-group form-toggle">
+        <label class="toggle-label">
+          <input type="checkbox" id="show-radial" name="showRadialLines" checked>
+          <span class="toggle-slider"></span>
+          Radial Lines
         </label>
       </div>
       
@@ -238,7 +246,15 @@ function createConfigForm(): string {
         <label class="toggle-label">
           <input type="checkbox" id="show-guides" name="showGuideCircles" checked>
           <span class="toggle-slider"></span>
-          Show Guide Circles
+          Guide Circles
+        </label>
+      </div>
+      
+      <div class="form-group form-toggle">
+        <label class="toggle-label">
+          <input type="checkbox" id="show-grid" name="showGrid">
+          <span class="toggle-slider"></span>
+          Print Grid
         </label>
       </div>
     </form>
@@ -321,9 +337,13 @@ export function updateFormFromConfig(config: SpiralConfig): void {
   // Update checkboxes
   const showGrid = form.elements.namedItem('showGrid') as HTMLInputElement | null;
   const showGuides = form.elements.namedItem('showGuideCircles') as HTMLInputElement | null;
+  const showRectangles = form.elements.namedItem('showGoldenRectangles') as HTMLInputElement | null;
+  const showRadial = form.elements.namedItem('showRadialLines') as HTMLInputElement | null;
   
   if (showGrid) showGrid.checked = config.showGrid;
   if (showGuides) showGuides.checked = config.showGuideCircles;
+  if (showRectangles) showRectangles.checked = config.showGoldenRectangles;
+  if (showRadial) showRadial.checked = config.showRadialLines;
 }
 
 /**
